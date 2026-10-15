@@ -122,3 +122,11 @@ def test_deeply_nested_mime_rejected():
         raw += f'--b{i}\r\nContent-Type: multipart/mixed; boundary="b{i + 1}"\r\n\r\n'.encode()
     with pytest.raises(MailError):
         parse(raw)
+
+
+@pytest.mark.parametrize(
+    "sender", ["peer@example.com garbage", "peer@example.com <thief@example.com>"]
+)
+def test_defective_from_cannot_normalize_into_registered_peer(sender):
+    with pytest.raises(MailError, match="malformed_header"):
+        parse(mime(sender=sender), trust_ses_headers=True)

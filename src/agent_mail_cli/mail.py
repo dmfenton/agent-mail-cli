@@ -39,6 +39,8 @@ def header(message: EmailMessage, name: str) -> str:
     values = message.get_all(name, [])
     if len(values) > 1:
         raise MailError("duplicate_header")
+    if values and getattr(values[0], "defects", ()):
+        raise MailError("malformed_header")
     value = str(values[0]) if values else ""
     if any(ord(c) < 32 or ord(c) == 127 for c in value):
         raise MailError("unsafe_header")
