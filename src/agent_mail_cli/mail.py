@@ -114,7 +114,9 @@ def parse(raw: bytes, *, trust_ses_headers: bool = False, max_bytes: int = 1_048
             continue
         if part.get_content_type() == "text/plain":
             try:
-                content = part.get_content()
+                content = part.get_content(errors="strict")
+                if part.defects:
+                    raise MailError("invalid_text_encoding")
             except (LookupError, UnicodeError, ValueError) as error:
                 raise MailError("invalid_text_encoding") from error
             if isinstance(content, str):

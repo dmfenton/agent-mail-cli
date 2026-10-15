@@ -130,3 +130,14 @@ def test_deeply_nested_mime_rejected():
 def test_defective_from_cannot_normalize_into_registered_peer(sender):
     with pytest.raises(MailError, match="malformed_header"):
         parse(mime(sender=sender), trust_ses_headers=True)
+
+
+def test_invalid_transfer_encoding_is_not_silently_rewritten():
+    raw = mime(extra="Content-Transfer-Encoding: base64\r\n", text="@@@invalid@@@")
+    with pytest.raises(MailError, match="invalid_text_encoding"):
+        parse(raw)
+
+
+def test_invalid_utf8_is_not_replaced():
+    with pytest.raises(MailError, match="invalid_text_encoding"):
+        parse(mime().replace(b"An introduction.", b"\xff\xfe"))
