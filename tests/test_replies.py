@@ -92,3 +92,14 @@ def test_missing_provider_receipt_is_uncertain(inbox):
     assert (
         send(inbox, "inbox/one", "Welcome", plan["confirm"], "approval-1")["status"] == "uncertain"
     )
+
+
+def test_bcc_blocks_prepare_and_send_without_writes(inbox):
+    from conftest import mime
+
+    inbox.s3.objects["inbox/one"] = mime(extra="Bcc: third@example.com\r\n")
+    with pytest.raises(MailError, match="unexpected_thread_participant"):
+        prepare(inbox, "inbox/one", "Welcome")
+    with pytest.raises(MailError, match="unexpected_thread_participant"):
+        send(inbox, "inbox/one", "Welcome", "any-hash", "approval-1")
+    assert not inbox.s3.writes and not inbox.ses.calls

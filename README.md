@@ -99,7 +99,7 @@ agent-mail --config /absolute/private/config.toml status '<receipt>' --approval 
 ```
 
 Replies target **only the registered From address**. The configured mailbox must
-be an original recipient, additional participants are rejected, and a different
+be an original recipient, additional visible To/CC/BCC participants are rejected, and a different
 Reply-To is rejected. No arbitrary To/CC/BCC fields exist. Original thread headers
 are preserved within a bounded reference chain.
 

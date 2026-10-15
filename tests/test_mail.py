@@ -190,3 +190,14 @@ def test_complexity_limit_includes_pruned_attachment_descendants():
     message.attach(attachment)
     with pytest.raises(MailError, match="mime_complexity"):
         parse(message.as_bytes())
+
+
+def test_bcc_participant_cannot_bypass_reply_validation():
+    mail = parse(mime(extra="Bcc: third@example.com\r\n"), trust_ses_headers=True)
+    with pytest.raises(MailError, match="unexpected_thread_participant"):
+        mail.reply_target("agents@example.com", ("peer@example.com",))
+
+
+def test_duplicate_bcc_headers_are_rejected():
+    with pytest.raises(MailError, match="duplicate_header"):
+        parse(mime(extra="Bcc: peer@example.com\r\nBcc: third@example.com\r\n"))

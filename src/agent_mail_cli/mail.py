@@ -118,7 +118,7 @@ def _parse(raw: bytes, *, trust_ses_headers: bool, max_bytes: int) -> Mail:
     if len(senders) != 1:
         raise MailError("sender_count")
     subject = header(message, "Subject")
-    recipients = addresses([header(message, "To"), header(message, "Cc")])
+    recipients = addresses([header(message, "To"), header(message, "Cc"), header(message, "Bcc")])
     reply_value = header(message, "Reply-To")
     reply_to = addresses([reply_value]) if reply_value else ()
     own_ids = message_ids(header(message, "Message-ID"))
