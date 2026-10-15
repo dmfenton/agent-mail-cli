@@ -114,3 +114,10 @@ def test_access_denied_not_missing(inbox):
 def test_trust_toggle_cannot_be_string():
     with pytest.raises(MailError, match="must_be_boolean"):
         Settings(bucket="example", sender="agents@example.com", trust_ses_headers="false")
+
+
+def test_threads_reject_bad_structured_header_without_aborting_page(inbox):
+    inbox.s3.objects["inbox/bad"] = mime(sender="group: peer@example.com; garbage")
+    result = run(parser().parse_args(["--config", "unused", "threads"]), inbox)
+    assert len(result["threads"]) == 1
+    assert result["rejected"] == [{"key": "inbox/bad", "error": "malformed_header"}]

@@ -141,3 +141,32 @@ def test_invalid_transfer_encoding_is_not_silently_rewritten():
 def test_invalid_utf8_is_not_replaced():
     with pytest.raises(MailError, match="invalid_text_encoding"):
         parse(mime().replace(b"An introduction.", b"\xff\xfe"))
+
+
+@pytest.mark.parametrize("kind", ["rfc822", "multipart"])
+def test_attachment_containers_are_pruned(kind):
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["From"] = "peer@example.com"
+    message["To"] = "agents@example.com"
+    message.set_content("Visible text")
+    attached = EmailMessage()
+    attached["From"] = "other@example.com"
+    attached["To"] = "peer@example.com"
+    attached.set_content("Private attached email text")
+    if kind == "rfc822":
+        message.add_attachment(attached)
+    else:
+        message.make_mixed()
+        container = EmailMessage()
+        container.make_mixed()
+        container["Content-Disposition"] = "attachment"
+        container.attach(attached)
+        message.attach(container)
+    assert parse(message.as_bytes()).body.strip() == "Visible text"
+
+
+def test_lazy_structured_header_failure_is_rejected():
+    with pytest.raises(MailError, match="malformed_header"):
+        parse(mime(sender="group: peer@example.com; garbage"))

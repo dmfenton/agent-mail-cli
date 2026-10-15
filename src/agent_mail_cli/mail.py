@@ -88,6 +88,24 @@ class Mail:
 
 
 def parse(raw: bytes, *, trust_ses_headers: bool = False, max_bytes: int = 1_048_576) -> Mail:
+    # The stdlib lazily parses structured headers and MIME parameters. Failures
+    # can occur well after parsebytes(), especially across Python versions.
+    try:
+        return _parse(raw, trust_ses_headers=trust_ses_headers, max_bytes=max_bytes)
+    except MailError:
+        raise
+    except (
+        AttributeError,
+        IndexError,
+        TypeError,
+        ValueError,
+        LookupError,
+        RecursionError,
+    ) as error:
+        raise MailError("malformed_header") from error
+
+
+def _parse(raw: bytes, *, trust_ses_headers: bool, max_bytes: int) -> Mail:
     if not raw or len(raw) > max_bytes:
         raise MailError("message_size_limit")
     try:
@@ -101,16 +119,28 @@ def parse(raw: bytes, *, trust_ses_headers: bool = False, max_bytes: int = 1_048
         raise MailError("sender_count")
     subject = header(message, "Subject")
     recipients = addresses([header(message, "To"), header(message, "Cc")])
-    reply_to = addresses([header(message, "Reply-To")]) if message.get("Reply-To") else ()
+    reply_value = header(message, "Reply-To")
+    reply_to = addresses([reply_value]) if reply_value else ()
     own_ids = message_ids(header(message, "Message-ID"))
     if len(own_ids) > 1:
         raise MailError("message_id_count")
     refs = message_ids(header(message, "References")) or message_ids(header(message, "In-Reply-To"))
     parts: list[str] = []
-    for count, part in enumerate(message.walk(), 1):
+    pending = [message]
+    count = 0
+    while pending:
+        part = pending.pop()
+        count += 1
         if count > 100 or part.defects:
             raise MailError("mime_complexity_or_defect")
-        if part.is_multipart() or part.get_content_disposition() == "attachment":
+        # Never descend into an attached multipart or encapsulated email.
+        if (
+            part.get_content_disposition() == "attachment"
+            or part.get_content_maintype() == "message"
+        ):
+            continue
+        if part.is_multipart():
+            pending.extend(reversed(part.get_payload()))
             continue
         if part.get_content_type() == "text/plain":
             try:
