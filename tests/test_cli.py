@@ -99,3 +99,17 @@ def test_cli_uncertain_exit_and_no_resend(inbox, monkeypatch, capsys, tmp_path):
     assert cli.main(command) == 2
     capsys.readouterr()
     assert len(inbox.ses.calls) == 1
+
+
+def test_malformed_registry_produces_json_error(inbox, monkeypatch, capsys, tmp_path):
+    from dataclasses import replace
+
+    inbox.settings = replace(inbox.settings, registry_key="registry/peers.json")
+    inbox.s3.objects["registry/peers.json"] = b'{"schema_version":1,"peers":{"bad":null}}'
+    monkeypatch.setattr(cli, "settings", lambda _: inbox.settings)
+    monkeypatch.setattr(cli, "client", lambda *a, **kw: inbox)
+    source = tmp_path / "body.txt"
+    source.write_text("Welcome")
+    assert cli.main(["--config", "unused", "prepare", "inbox/one", "--body-file", str(source)]) == 1
+    assert json.loads(capsys.readouterr().err) == {"error": "invalid_registry"}
+    assert not inbox.s3.writes

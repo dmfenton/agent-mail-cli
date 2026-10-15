@@ -170,3 +170,23 @@ def test_attachment_containers_are_pruned(kind):
 def test_lazy_structured_header_failure_is_rejected():
     with pytest.raises(MailError, match="malformed_header"):
         parse(mime(sender="group: peer@example.com; garbage"))
+
+
+def test_complexity_limit_includes_pruned_attachment_descendants():
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["From"] = "peer@example.com"
+    message["To"] = "agents@example.com"
+    message.set_content("Visible text")
+    message.make_mixed()
+    attachment = EmailMessage()
+    attachment.make_mixed()
+    attachment["Content-Disposition"] = "attachment"
+    for _ in range(101):
+        child = EmailMessage()
+        child.set_content("Hidden attached text")
+        attachment.attach(child)
+    message.attach(attachment)
+    with pytest.raises(MailError, match="mime_complexity"):
+        parse(message.as_bytes())

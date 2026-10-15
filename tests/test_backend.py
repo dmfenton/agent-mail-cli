@@ -121,3 +121,31 @@ def test_threads_reject_bad_structured_header_without_aborting_page(inbox):
     result = run(parser().parse_args(["--config", "unused", "threads"]), inbox)
     assert len(result["threads"]) == 1
     assert result["rejected"] == [{"key": "inbox/bad", "error": "malformed_header"}]
+
+
+@pytest.mark.parametrize(
+    "registry",
+    [
+        None,
+        [],
+        {"schema_version": 1, "peers": None},
+        {"schema_version": 1, "peers": {"bad": None}},
+        {"schema_version": 1, "peers": {"bad": {"trust": None}}},
+        {"schema_version": 1, "peers": {"bad": {"contact": None}}},
+        {
+            "schema_version": 1,
+            "peers": {
+                "bad": {
+                    "trust": {"kind": "owner_confirmed_contact"},
+                    "contact": {"kind": "email", "address": None},
+                }
+            },
+        },
+    ],
+)
+def test_malformed_registry_is_rejected_without_writes(inbox, registry):
+    inbox.settings = replace(inbox.settings, registry_key="registry/peers.json")
+    inbox.s3.objects["registry/peers.json"] = json.dumps(registry).encode()
+    with pytest.raises(MailError):
+        inbox.peers()
+    assert not inbox.s3.writes

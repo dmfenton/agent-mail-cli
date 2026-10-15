@@ -126,13 +126,13 @@ def _parse(raw: bytes, *, trust_ses_headers: bool, max_bytes: int) -> Mail:
         raise MailError("message_id_count")
     refs = message_ids(header(message, "References")) or message_ids(header(message, "In-Reply-To"))
     parts: list[str] = []
-    pending = [message]
-    count = 0
-    while pending:
-        part = pending.pop()
-        count += 1
+    # Count the entire parsed tree, including attachments whose text stays hidden.
+    for count, part in enumerate(message.walk(), 1):
         if count > 100 or part.defects:
             raise MailError("mime_complexity_or_defect")
+    pending = [message]
+    while pending:
+        part = pending.pop()
         # Never descend into an attached multipart or encapsulated email.
         if (
             part.get_content_disposition() == "attachment"

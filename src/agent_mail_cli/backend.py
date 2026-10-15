@@ -123,14 +123,25 @@ class Inbox:
             if len(data) > 65_536:
                 raise MailError("registry_size_limit")
             registry = json.loads(data)
-            if registry.get("schema_version") != 1:
+            if not isinstance(registry, dict) or registry.get("schema_version") != 1:
                 raise MailError("unsupported_registry")
-            for peer in registry["peers"].values():
+            entries = registry.get("peers")
+            if not isinstance(entries, dict):
+                raise MailError("invalid_registry")
+            for peer in entries.values():
+                if not isinstance(peer, dict):
+                    raise MailError("invalid_registry")
+                trust, contact = peer.get("trust", {}), peer.get("contact", {})
+                if not isinstance(trust, dict) or not isinstance(contact, dict):
+                    raise MailError("invalid_registry")
                 if (
-                    peer.get("trust", {}).get("kind") == "owner_confirmed_contact"
-                    and peer.get("contact", {}).get("kind") == "email"
+                    trust.get("kind") == "owner_confirmed_contact"
+                    and contact.get("kind") == "email"
                 ):
-                    peers.add(address(peer["contact"]["address"]))
+                    mailbox = contact.get("address")
+                    if not isinstance(mailbox, str):
+                        raise MailError("invalid_registry")
+                    peers.add(address(mailbox))
         return tuple(sorted(peers))
 
     def state_key(self, kind: str, identity: str) -> str:
