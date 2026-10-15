@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-mail-cli"
+version = "0.1.0"
+description = "Explicit, auditable email tools for existing Amazon SES and S3 inboxes"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["boto3>=1.36,<2"]
+
+[project.scripts]
+agent-mail = "agent_mail_cli.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.11,<1", "bandit>=1.8,<2", "build>=1,<2"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105"]
